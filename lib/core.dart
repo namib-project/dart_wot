@@ -8,6 +8,8 @@
 /// for protocol bindings, and the `Servient` class which provides the WoT
 /// runtime used for consuming, exposing, and discovering Things.
 
+export 'package:dcaf/dcaf.dart' show AccessTokenResponse;
+
 export 'src/core/codecs/content_codec.dart';
 export 'src/core/content_serdes.dart';
 export 'src/core/credentials/apikey_credentials.dart';

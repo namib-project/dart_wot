@@ -20,6 +20,7 @@ dependencies:
   coap: 4.1.0
   collection: ^1.16.0
   curie: ^0.1.0
+  dcaf: ^0.1.0
   http: ^0.13.4
   http_auth: ^1.0.1
   http_parser: ^4.0.0

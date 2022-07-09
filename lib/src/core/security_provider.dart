@@ -4,7 +4,10 @@
 //
 // SPDX-License-Identifier: BSD-3-Clause
 
+import 'package:dcaf/dcaf.dart';
+
 import '../definitions/form.dart';
+import 'credentials/ace_credentials.dart';
 import 'credentials/apikey_credentials.dart';
 import 'credentials/basic_credentials.dart';
 import 'credentials/bearer_credentials.dart';
@@ -27,6 +30,15 @@ typedef ClientPskCallback = PskCredentials? Function(
   Uri uri,
   Form? form,
   String? identityHint,
+);
+
+/// Function signature for a synchronous callback for providing client
+/// [ACECredentials] at runtime, based on an optional [creationHint]
+/// given by the Resource Server.
+typedef AceSecurityCallback = Future<ACECredentials?> Function(
+  Uri uri,
+  Form? form,
+  AuthServerRequestCreationHint? creationHint,
 );
 
 /// Function signature for a synchronous callback for providing client
@@ -61,6 +73,7 @@ class ClientSecurityProvider {
     this.digestCredentialsCallback,
     this.apikeyCredentialsCallback,
     this.oauth2CredentialsCallback,
+    this.aceCredentialsCallback,
   });
 
   /// Asychronous callback for [ApiKeyCredentials].
@@ -85,6 +98,9 @@ class ClientSecurityProvider {
   /// Asychronous callback for [OAuth2Credentials].
   final AsyncClientSecurityCallback<OAuth2Credentials>?
       oauth2CredentialsCallback;
+
+  /// Asychronous callback for [ACECredentials].
+  final AceSecurityCallback? aceCredentialsCallback;
 }
 
 /// Function signature for a synchronous callback retrieving server
