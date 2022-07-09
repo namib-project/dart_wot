@@ -11,43 +11,17 @@ import 'security_scheme.dart';
 // TODO(JKRhb): Check whether an audience field is needed or if this implied by
 // the base field/form href.
 class ACESecurityScheme extends SecurityScheme {
-  @override
-  String get scheme => 'ace:ACESecurityScheme';
-
-  /// URI of the authorization server.
-  String? as;
-
-  /// The intended audience for this [ACESecurityScheme].
-  String? audience;
-
-  /// Set of authorization scope identifiers provided as an array.
-  ///
-  /// These are provided in tokens returned by an authorization server and
-  /// associated with forms in order to identify what resources a client may
-  /// access and how. The values associated with a form should be chosen from
-  /// those defined in an [ACESecurityScheme] active on that form.
-  List<String>? scopes;
-
-  /// Indicates whether a [cnonce] is required by the Resource Server.
-  bool? cnonce;
-
-  final List<String> _parsedJsonFields = [];
-
   /// Constructor.
-  ACESecurityScheme(
-      {String? description,
-      this.as,
-      this.audience,
-      this.scopes,
-      this.cnonce,
-      Map<String, String>? descriptions}) {
+  ACESecurityScheme({
+    String? description,
+    this.as,
+    this.audience,
+    this.scopes,
+    this.cnonce,
+    Map<String, String>? descriptions,
+  }) {
     this.description = description;
     this.descriptions.addAll(descriptions ?? {});
-  }
-
-  dynamic _getJsonValue(Map<String, dynamic> json, String key) {
-    _parsedJsonFields.add(key);
-    return json[key];
   }
 
   /// Creates a [ACESecurityScheme] from a [json] object.
@@ -82,5 +56,32 @@ class ACESecurityScheme extends SecurityScheme {
     }
 
     parseAdditionalFields(additionalFields, json, _parsedJsonFields);
+  }
+
+  @override
+  String get scheme => 'ace:ACESecurityScheme';
+
+  /// URI of the authorization server.
+  String? as;
+
+  /// The intended audience for this [ACESecurityScheme].
+  String? audience;
+
+  /// Set of authorization scope identifiers provided as an array.
+  ///
+  /// These are provided in tokens returned by an authorization server and
+  /// associated with forms in order to identify what resources a client may
+  /// access and how. The values associated with a form should be chosen from
+  /// those defined in an [ACESecurityScheme] active on that form.
+  List<String>? scopes;
+
+  /// Indicates whether a [cnonce] is required by the Resource Server.
+  bool? cnonce;
+
+  final List<String> _parsedJsonFields = [];
+
+  dynamic _getJsonValue(Map<String, dynamic> json, String key) {
+    _parsedJsonFields.add(key);
+    return json[key];
   }
 }
