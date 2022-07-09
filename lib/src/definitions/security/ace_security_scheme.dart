@@ -12,10 +12,13 @@ import 'security_scheme.dart';
 // the base field/form href.
 class ACESecurityScheme extends SecurityScheme {
   @override
-  String get scheme => "ace:ACESecurityScheme";
+  String get scheme => 'ace:ACESecurityScheme';
 
   /// URI of the authorization server.
   String? as;
+
+  /// The intended audience for this [ACESecurityScheme].
+  String? audience;
 
   /// Set of authorization scope identifiers provided as an array.
   ///
@@ -25,10 +28,6 @@ class ACESecurityScheme extends SecurityScheme {
   /// those defined in an [ACESecurityScheme] active on that form.
   List<String>? scopes;
 
-  /// Authorization flow.
-  // TODO(JKRhb): Check if this variable should be renamed to "grantType".
-  String? flow;
-
   /// Indicates whether a [cnonce] is required by the Resource Server.
   bool? cnonce;
 
@@ -36,9 +35,9 @@ class ACESecurityScheme extends SecurityScheme {
 
   /// Constructor.
   ACESecurityScheme(
-      {this.flow,
-      String? description,
+      {String? description,
       this.as,
+      this.audience,
       this.scopes,
       this.cnonce,
       Map<String, String>? descriptions}) {
@@ -55,33 +54,31 @@ class ACESecurityScheme extends SecurityScheme {
   ACESecurityScheme.fromJson(Map<String, dynamic> json) {
     _parsedJsonFields.addAll(parseSecurityJson(this, json));
 
-    final dynamic jsonAs = _getJsonValue(json, "ace:as");
+    final dynamic jsonAs = _getJsonValue(json, 'ace:as');
     if (jsonAs is String) {
       as = jsonAs;
-      _parsedJsonFields.add("ace:as");
+      _parsedJsonFields.add('ace:as');
     }
 
-    final dynamic jsonCnonce = _getJsonValue(json, "ace:cnonce");
+    final dynamic jsonCnonce = _getJsonValue(json, 'ace:cnonce');
     if (jsonCnonce is bool) {
       cnonce = jsonCnonce;
-      _parsedJsonFields.add("ace:cnonce");
+      _parsedJsonFields.add('ace:cnonce');
     }
 
-    final dynamic jsonScopes = _getJsonValue(json, "ace:scopes");
+    final dynamic jsonAudience = _getJsonValue(json, 'ace:audience');
+    if (jsonAudience is String) {
+      audience = jsonAudience;
+      _parsedJsonFields.add('ace:audience');
+    }
+
+    final dynamic jsonScopes = _getJsonValue(json, 'ace:scopes');
     if (jsonScopes is String) {
       scopes = [jsonScopes];
-      _parsedJsonFields.add("ace:scopes");
+      _parsedJsonFields.add('ace:scopes');
     } else if (jsonScopes is List<dynamic>) {
       scopes = jsonScopes.whereType<String>().toList();
-      _parsedJsonFields.add("ace:scopes");
-    }
-
-    final dynamic jsonFlow = _getJsonValue(json, "ace:flow");
-    if (jsonFlow is String) {
-      flow = jsonFlow;
-      _parsedJsonFields.add("ace:flow");
-    } else {
-      throw ArgumentError("flow must be of type 'string'!");
+      _parsedJsonFields.add('ace:scopes');
     }
 
     parseAdditionalFields(additionalFields, json, _parsedJsonFields);
