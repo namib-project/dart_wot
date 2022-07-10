@@ -20,7 +20,7 @@ dependencies:
   coap:
     git:
       url: https://github.com/namib-project/coap
-      ref: fix-content-formats
+      ref: fix-psk
   collection: ^1.16.0
   curie: ^0.1.0
   dcaf: ^0.1.0
