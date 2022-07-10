@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: BSD-3-Clause
 
+import 'dart:typed_data';
+
 import 'package:dcaf/dcaf.dart';
 
 import '../definitions/form.dart';
@@ -29,7 +31,7 @@ import 'credentials/psk_credentials.dart';
 typedef ClientPskCallback = PskCredentials? Function(
   Uri uri,
   Form? form,
-  String? identityHint,
+  Uint8List? identityHint,
 );
 
 /// Function signature for a synchronous callback for providing client

@@ -6,6 +6,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:coap/coap.dart' as coap;
 import 'package:coap/config/coap_config_default.dart';
@@ -227,8 +228,7 @@ class _CoapRequest {
 
     _checkAceProfile(aceCredentials);
 
-    final identity =
-        String.fromCharCodes(aceCredentials.accessToken.accessToken);
+    final identity = Uint8List.fromList(aceCredentials.accessToken.accessToken);
 
     final cnf = aceCredentials.accessToken.cnf;
 
@@ -238,7 +238,7 @@ class _CoapRequest {
       );
     }
 
-    final psk = String.fromCharCodes(cnf.serialize());
+    final psk = Uint8List.fromList(cnf.serialize());
 
     final client = coap.CoapClient(
       request.uri.replace(scheme: 'coaps'),
