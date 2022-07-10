@@ -12,6 +12,7 @@ export 'package:dcaf/dcaf.dart' show AccessTokenResponse;
 
 export 'src/core/codecs/content_codec.dart';
 export 'src/core/content_serdes.dart';
+export 'src/core/credentials/ace_credentials.dart';
 export 'src/core/credentials/apikey_credentials.dart';
 export 'src/core/credentials/basic_credentials.dart';
 export 'src/core/credentials/bearer_credentials.dart';
