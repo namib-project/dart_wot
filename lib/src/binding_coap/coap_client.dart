@@ -215,7 +215,7 @@ class _CoapRequest {
     final aceCredentialsCallback =
         _clientSecurityProvider?.aceCredentialsCallback;
 
-    if (aceCredentialsCallback == null) {
+    if (aceCredentialsCallback == null || creationHint == null) {
       return null;
     }
 
