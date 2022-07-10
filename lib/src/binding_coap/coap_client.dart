@@ -250,12 +250,6 @@ class _CoapRequest {
     final response = await client.send(request);
     client.close();
 
-    if (response == null) {
-      throw CoapBindingException(
-        'Unknown method for obtaining access to resource encountered.',
-      );
-    }
-
     return response;
   }
 
@@ -279,9 +273,7 @@ class _CoapRequest {
     coap.CoapRequest originalRequest,
     coap.CoapResponse response,
   ) async {
-    // TODO: Replace with enum value
-    const applicationAceCbor = 19;
-    if (response.contentFormat == applicationAceCbor) {
+    if (response.contentFormat == coap.CoapMediaType.applicationAceCbor) {
       return _handleAceOauthUnauthorizedResponse(originalRequest, response);
     }
 
