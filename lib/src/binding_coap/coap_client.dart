@@ -164,16 +164,16 @@ class _CoapRequest {
     coap.CoapResponse response,
   ) async {
     if (response.statusCode == coap.CoapCode.unauthorized) {
-      if (_form.securityDefinitions
-          .whereType<AutoSecurityScheme>()
-          .isNotEmpty) {
-        return _handleUnauthorizedResponse(request, response);
-      }
+      // if (_form.securityDefinitions
+      //     .whereType<AutoSecurityScheme>()
+      //     .isNotEmpty) {
+      return _handleUnauthorizedResponse(request, response);
+      // }
 
-      throw CoapBindingException(
-        'Encountered unauthorized response but TD does not contain an '
-        'AutoSecurityScheme for automatic negotiation.',
-      );
+      // throw CoapBindingException(
+      //   'Encountered unauthorized response but TD does not contain an '
+      //   'AutoSecurityScheme for automatic negotiation.',
+      // );
     }
 
     return response;
