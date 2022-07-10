@@ -23,6 +23,7 @@ import '../core/thing_discovery.dart';
 import '../definitions/form.dart';
 import '../definitions/operation_type.dart';
 import '../definitions/security/ace_security_scheme.dart';
+import '../definitions/security/auto_security_scheme.dart';
 import '../definitions/security/psk_security_scheme.dart';
 import '../definitions/thing_description.dart';
 import '../scripting_api/subscription.dart';
@@ -167,7 +168,16 @@ class _CoapRequest {
     coap.CoapResponse response,
   ) async {
     if (response.statusCode == coap.CoapCode.unauthorized) {
-      return _handleUnauthorizedResponse(request, response);
+      if (_form.securityDefinitions
+          .whereType<AutoSecurityScheme>()
+          .isNotEmpty) {
+        return _handleUnauthorizedResponse(request, response);
+      }
+
+      throw CoapBindingException(
+        'Encountered unauthorized response but TD does not contain an '
+        'AutoSecurityScheme for automatic negotiation.',
+      );
     }
 
     return response;
@@ -235,7 +245,7 @@ class _CoapRequest {
     final psk = String.fromCharCodes(cnf.serialize());
 
     final client = coap.CoapClient(
-      request.uri,
+      request.uri.replace(scheme: 'coaps'),
       CoapConfigTinydtls(),
       pskCredentialsCallback: (identityHint) =>
           coap.PskCredentials(identity: identity, preSharedKey: psk),
