@@ -13,6 +13,7 @@ import 'package:coap/config/coap_config_default.dart';
 import 'package:coap/config/coap_config_tinydtls.dart';
 import 'package:dcaf/dcaf.dart';
 import 'package:typed_data/typed_data.dart';
+import 'package:cbor/cbor.dart';
 
 import '../core/content.dart';
 import '../core/credentials/ace_credentials.dart';
@@ -232,13 +233,21 @@ class _CoapRequest {
 
     final cnf = aceCredentials.accessToken.cnf;
 
-    if (cnf == null) {
+    if (cnf is! PlainCoseKey) {
       throw CoapBindingException(
-        'Missing Proof of Possession Key for establishing a DTLS connection',
+        'Proof of Possession Key for establishing a DTLS connection must be symmetric',
       );
     }
 
-    final psk = Uint8List.fromList(cnf.serialize());
+    final key = cnf.key.parameters[-1];
+    final psk;
+    if (key is CborBytes) {
+      psk = Uint8List.fromList(key.bytes);
+    } else {
+      throw CoapBindingException(
+        'Proof of Possession Key for establishing a DTLS connection must be bytes',
+      );
+    }
 
     final client = coap.CoapClient(
       request.uri.replace(scheme: 'coaps'),
