@@ -13,6 +13,7 @@ import 'interaction_affordances/action.dart';
 import 'interaction_affordances/event.dart';
 import 'interaction_affordances/property.dart';
 import 'link.dart';
+import 'security/ace_security_scheme.dart';
 import 'security/apikey_security_scheme.dart';
 import 'security/auto_security_scheme.dart';
 import 'security/basic_security_scheme.dart';
@@ -330,6 +331,12 @@ class ThingDescription {
           case 'oauth2':
             {
               securityScheme = OAuth2SecurityScheme.fromJson(value);
+              break;
+            }
+
+          case 'ace:ACESecurityScheme':
+            {
+              securityScheme = ACESecurityScheme.fromJson(value);
               break;
             }
           default:
