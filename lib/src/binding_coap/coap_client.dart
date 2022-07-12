@@ -8,12 +8,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cbor/cbor.dart';
 import 'package:coap/coap.dart' as coap;
 import 'package:coap/config/coap_config_default.dart';
 import 'package:coap/config/coap_config_tinydtls.dart';
 import 'package:dcaf/dcaf.dart';
 import 'package:typed_data/typed_data.dart';
-import 'package:cbor/cbor.dart';
 
 import '../core/content.dart';
 import '../core/credentials/ace_credentials.dart';
@@ -25,7 +25,6 @@ import '../core/thing_discovery.dart';
 import '../definitions/form.dart';
 import '../definitions/operation_type.dart';
 import '../definitions/security/ace_security_scheme.dart';
-import '../definitions/security/auto_security_scheme.dart';
 import '../definitions/security/psk_security_scheme.dart';
 import '../definitions/thing_description.dart';
 import '../scripting_api/subscription.dart';
@@ -163,13 +162,18 @@ class _CoapRequest {
 
   Future<coap.CoapResponse> _handleResponse(
     coap.CoapRequest request,
-    coap.CoapResponse response,
-  ) async {
+    coap.CoapResponse response, {
+    ACECredentials? invalidAceCredentials,
+  }) async {
     if (response.statusCode == coap.CoapCode.unauthorized) {
       // if (_form.securityDefinitions
       //     .whereType<AutoSecurityScheme>()
       //     .isNotEmpty) {
-      return _handleUnauthorizedResponse(request, response);
+      return _handleUnauthorizedResponse(
+        request,
+        response,
+        invalidAceCredentials: invalidAceCredentials,
+      );
       // }
 
       // throw CoapBindingException(
@@ -211,8 +215,9 @@ class _CoapRequest {
 
   Future<coap.CoapResponse?> _sendAceOauthRequest(
     coap.CoapRequest request,
-    AuthServerRequestCreationHint? creationHint,
-  ) async {
+    AuthServerRequestCreationHint? creationHint, [
+    ACECredentials? invalidAceCredentials,
+  ]) async {
     final aceCredentialsCallback =
         _clientSecurityProvider?.aceCredentialsCallback;
 
@@ -220,8 +225,12 @@ class _CoapRequest {
       return null;
     }
 
-    final aceCredentials =
-        await aceCredentialsCallback(_form.resolvedHref, _form, creationHint);
+    final aceCredentials = await aceCredentialsCallback(
+      _form.resolvedHref,
+      _form,
+      creationHint,
+      invalidAceCredentials,
+    );
 
     if (aceCredentials == null) {
       throw CoapBindingException('Missing ACE-OAuth Credentials');
@@ -259,16 +268,19 @@ class _CoapRequest {
     final response = await client.send(request);
     client.close();
 
-    return response;
+    return _handleResponse(request, response,
+        invalidAceCredentials: aceCredentials);
   }
 
   Future<coap.CoapResponse> _handleAceOauthUnauthorizedResponse(
     coap.CoapRequest originalRequest,
     coap.CoapResponse originalResponse,
+    ACECredentials? invalidAceCredentials,
   ) async {
     final creationHint = _obtainCreationHintFromResponse(originalResponse);
 
-    final response = await _sendAceOauthRequest(originalRequest, creationHint);
+    final response = await _sendAceOauthRequest(
+        originalRequest, creationHint, invalidAceCredentials);
 
     if (response == null) {
       // TODO: Remove once new coap library version has been released.
@@ -280,10 +292,15 @@ class _CoapRequest {
 
   Future<coap.CoapResponse> _handleUnauthorizedResponse(
     coap.CoapRequest originalRequest,
-    coap.CoapResponse response,
-  ) async {
+    coap.CoapResponse response, {
+    ACECredentials? invalidAceCredentials,
+  }) async {
     if (response.contentFormat == coap.CoapMediaType.applicationAceCbor) {
-      return _handleAceOauthUnauthorizedResponse(originalRequest, response);
+      return _handleAceOauthUnauthorizedResponse(
+        originalRequest,
+        response,
+        invalidAceCredentials,
+      );
     }
 
     throw CoapBindingException(

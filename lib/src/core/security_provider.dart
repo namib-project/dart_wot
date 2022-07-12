@@ -37,10 +37,15 @@ typedef ClientPskCallback = PskCredentials? Function(
 /// Function signature for a synchronous callback for providing client
 /// [ACECredentials] at runtime, based on an optional [creationHint]
 /// given by the Resource Server.
+///
+/// If a request with an access token has failed before, leading to an
+/// "Unauthorized" response, the [invalidAceCredentials] from the previous
+/// request are returned as an additional parameter.
 typedef AceSecurityCallback = Future<ACECredentials?> Function(
   Uri uri,
   Form? form,
   AuthServerRequestCreationHint? creationHint,
+  ACECredentials? invalidAceCredentials,
 );
 
 /// Function signature for a synchronous callback for providing client
