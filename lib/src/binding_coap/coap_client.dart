@@ -244,17 +244,19 @@ class _CoapRequest {
 
     if (cnf is! PlainCoseKey) {
       throw CoapBindingException(
-        'Proof of Possession Key for establishing a DTLS connection must be symmetric',
+        'Proof of Possession Key for establishing a DTLS connection must be '
+        'symmetric',
       );
     }
 
     final key = cnf.key.parameters[-1];
-    final psk;
+    final Uint8List psk;
     if (key is CborBytes) {
       psk = Uint8List.fromList(key.bytes);
     } else {
       throw CoapBindingException(
-        'Proof of Possession Key for establishing a DTLS connection must be bytes',
+        'Proof of Possession Key for establishing a DTLS connection must be '
+        'bytes',
       );
     }
 
