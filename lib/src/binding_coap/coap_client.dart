@@ -582,12 +582,6 @@ class CoapClient extends ProtocolClient {
 
     coapClient.close();
 
-    if (response == null) {
-      throw DiscoveryException(
-        'Got no CoRE Link Format Discovery response for $uri',
-      );
-    }
-
     final actualContentFormat = response.contentFormat;
     const expectedContentFormat = coap.CoapMediaType.applicationLinkFormat;
 
