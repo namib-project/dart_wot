@@ -165,14 +165,34 @@ class _CoapRequest {
     coap.CoapResponse response, {
     ACECredentials? invalidAceCredentials,
   }) async {
-    if (response.statusCode == coap.CoapCode.unauthorized) {
+    // TODO: Refactor using new CoAP Content-Format API
+    final responseClass = response.code >> 5 & 0x7;
+    final responseDetail = response.code & 0x7;
+
+    if (responseClass == 2) {
+      return response;
+    }
+
+    if (responseClass == 5) {
+      throw CoapBindingException('Server error $responseClass.$responseDetail');
+    }
+
+    final unauthorizedAceCodes = [
+      // TODO: Should other response codes be included as well?
+      coap.CoapCode.unauthorized,
+      coap.CoapCode.methodNotAllowed,
+      coap.CoapCode.forbidden,
+    ];
+
+    if (response.contentFormat == coap.CoapMediaType.applicationAceCbor &&
+        (unauthorizedAceCodes.contains(response.statusCode))) {
       // if (_form.securityDefinitions
       //     .whereType<AutoSecurityScheme>()
       //     .isNotEmpty) {
-      return _handleUnauthorizedResponse(
+      return _handleAceOauthUnauthorizedResponse(
         request,
         response,
-        invalidAceCredentials: invalidAceCredentials,
+        invalidAceCredentials,
       );
       // }
 
@@ -182,7 +202,7 @@ class _CoapRequest {
       // );
     }
 
-    return response;
+    throw CoapBindingException('Client error $responseClass.$responseDetail');
   }
 
   // TODO: Could be an extension
@@ -270,8 +290,11 @@ class _CoapRequest {
     final response = await client.send(request);
     client.close();
 
-    return _handleResponse(request, response,
-        invalidAceCredentials: aceCredentials);
+    return _handleResponse(
+      request,
+      response,
+      invalidAceCredentials: aceCredentials,
+    );
   }
 
   Future<coap.CoapResponse> _handleAceOauthUnauthorizedResponse(
@@ -282,7 +305,10 @@ class _CoapRequest {
     final creationHint = _obtainCreationHintFromResponse(originalResponse);
 
     final response = await _sendAceOauthRequest(
-        originalRequest, creationHint, invalidAceCredentials);
+      originalRequest,
+      creationHint,
+      invalidAceCredentials,
+    );
 
     if (response == null) {
       // TODO: Remove once new coap library version has been released.
@@ -290,24 +316,6 @@ class _CoapRequest {
     }
 
     return response;
-  }
-
-  Future<coap.CoapResponse> _handleUnauthorizedResponse(
-    coap.CoapRequest originalRequest,
-    coap.CoapResponse response, {
-    ACECredentials? invalidAceCredentials,
-  }) async {
-    if (response.contentFormat == coap.CoapMediaType.applicationAceCbor) {
-      return _handleAceOauthUnauthorizedResponse(
-        originalRequest,
-        response,
-        invalidAceCredentials,
-      );
-    }
-
-    throw CoapBindingException(
-      'Unknown method for obtaining access to resource encountered.',
-    );
   }
 
   static coap.PskCredentialsCallback? _createPskCallback(
