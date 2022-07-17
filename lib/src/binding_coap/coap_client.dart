@@ -136,9 +136,6 @@ class _CoapRequest {
         );
     }
     _coapClient.close();
-    if (response == null) {
-      throw CoapBindingException('Sending CoAP request to $_requestUri failed');
-    }
     return response;
   }
 
@@ -411,12 +408,6 @@ class CoapClient extends ProtocolClient {
     final response = await coapClient.send(request);
 
     coapClient.close();
-
-    if (response == null) {
-      throw DiscoveryException(
-        'Got no CoRE Link Format Discovery response for $uri',
-      );
-    }
 
     final actualContentFormat = response.contentFormat;
     const expectedContentFormat = coap.CoapMediaType.applicationLinkFormat;
