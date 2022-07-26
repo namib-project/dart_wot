@@ -12,7 +12,9 @@ import 'package:coap/coap.dart';
 import '../../definitions/data_schema.dart';
 import 'content_codec.dart';
 
-/// A [ContentCodec] that encodes and decodes CBOR data.
+/// A [ContentCodec] that encodes and decodes the CoRE Link Format ([RFC 6690]).
+///
+/// [RFC 6690]: https://datatracker.ietf.org/doc/html/rfc6690
 class LinkFormatCodec extends ContentCodec {
   @override
   ByteBuffer valueToBytes(
