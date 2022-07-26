@@ -6,10 +6,12 @@
 
 import 'dart:async';
 
+import 'package:coap/coap.dart';
+
+import '../../core.dart';
 import '../../scripting_api.dart' as scripting_api;
 import '../definitions/thing_description.dart';
-import 'protocol_interfaces/protocol_client.dart';
-import 'servient.dart';
+import 'content.dart';
 
 /// Custom [Exception] that is thrown when the discovery process fails.
 class DiscoveryException implements Exception {
@@ -29,10 +31,12 @@ class DiscoveryException implements Exception {
 class ThingDiscovery extends Stream<ThingDescription>
     implements scripting_api.ThingDiscovery {
   /// Creates a new [ThingDiscovery] object with a given [thingFilter].
-  ThingDiscovery(this.thingFilter, Servient servient)
-      : _client = servient.clientFor(thingFilter.url.scheme) {
+  ThingDiscovery(this.thingFilter, this._servient)
+      : _client = _servient.clientFor(thingFilter.url.scheme) {
     _stream = _start();
   }
+
+  final Servient _servient;
 
   bool _active = true;
 
@@ -51,7 +55,7 @@ class ThingDiscovery extends Stream<ThingDescription>
 
     switch (discoveryMethod) {
       case scripting_api.DiscoveryMethod.direct:
-        yield* _client.discoverDirectly(thingFilter.url);
+        yield* _discoverDirectly(thingFilter.url);
         break;
       case scripting_api.DiscoveryMethod.coreLinkFormat:
         yield* _discoverWithCoreLinkFormat(thingFilter.url);
@@ -67,14 +71,55 @@ class ThingDiscovery extends Stream<ThingDescription>
     _active = false;
   }
 
+  Object? _decodeThingDescription(Content content) async {
+    try {
+      return await _servient.contentSerdes.contentToValue(content, null);
+    } on Exception {
+      return null;
+    }
+  }
+
+  Stream<ThingDescription> _discoverDirectly(Uri uri) async* {
+    yield* _client
+        .discoverDirectly(uri, disableMulticast: true)
+        // TODO: Should errors be passed to the stream here?
+        .asyncMap(_decodeThingDescription)
+        .where((event) => event is Map<String, dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map(ThingDescription.fromJson);
+  }
+
   Stream<ThingDescription> _discoverWithCoreLinkFormat(Uri uri) async* {
     final Set<Uri> discoveredUris = {};
     await for (final coreWebLink in _client.discoverWithCoreLinkFormat(uri)) {
-      if (discoveredUris.contains(coreWebLink)) {
+      final value =
+          await _servient.contentSerdes.contentToValue(coreWebLink, null);
+
+      if (value is! CoapWebLink ||
+          !(value.attributes.getContentTypes()?.contains('wot.thing') ??
+              false)) {
         continue;
       }
-      discoveredUris.add(coreWebLink);
-      yield* _client.discoverDirectly(coreWebLink, disableMulticast: true);
+
+      Uri? parsedUri = Uri.tryParse(value.uri);
+
+      if (parsedUri == null) {
+        // TODO: Should an error be passed on here instead?
+        continue;
+      }
+
+      if (!parsedUri.isAbsolute) {
+        parsedUri = parsedUri.replace(
+          scheme: uri.scheme,
+          host: uri.host,
+          port: uri.port,
+        );
+      }
+      if (discoveredUris.contains(parsedUri)) {
+        continue;
+      }
+      discoveredUris.add(parsedUri);
+      yield* _discoverDirectly(parsedUri);
     }
   }
 

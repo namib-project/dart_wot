@@ -14,6 +14,7 @@ import '../definitions/data_schema.dart';
 import 'codecs/cbor_codec.dart';
 import 'codecs/content_codec.dart';
 import 'codecs/json_codec.dart';
+import 'codecs/link_format_codec.dart';
 import 'content.dart';
 
 // TODO(JKRhb): Check if these constants are actually necessary
@@ -28,6 +29,9 @@ const jsonLdContentType = 'application/ld+json';
 
 /// Defines `application/json` as the default content type.
 const defaultContentType = jsonContentType;
+
+// TODO: Replace with enum.
+const _linkFormatKey = 'LinkFormat';
 
 /// Custom [Exception] that is thrown when Serialization or Deserialization
 /// fails.
@@ -65,15 +69,16 @@ class ContentSerdes {
   void _addDefaultCodecs() {
     _supportedCodecs['JSON'] = JsonCodec();
     _supportedCodecs['CBOR'] = CborCodec();
+    _supportedCodecs[_linkFormatKey] = LinkFormatCodec();
 
     // TODO(JKRhb): Add codecs for text-based media types
     // TODO(JKRhb): Add codecs for XML based media types
     // TODO(JKRhb): Add codecs for Base64 media types
     // TODO(JKRhb): Add codec for OctetStream media type
-    // TODO(JKRhb): Add codec for CoRE Link Format
 
     _addDefaultJsonContentTypes();
     _addDefaultCborContentTypes();
+    addContentTypeSupport('application/link-format', _linkFormatKey);
   }
 
   /// Adds support for a new [contentType] that has to use a [Codec] that has

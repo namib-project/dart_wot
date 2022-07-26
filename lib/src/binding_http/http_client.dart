@@ -19,7 +19,6 @@ import '../definitions/form.dart';
 import '../definitions/operation_type.dart';
 import '../definitions/security/basic_security_scheme.dart';
 import '../definitions/security/bearer_security_scheme.dart';
-import '../definitions/thing_description.dart';
 import '../scripting_api/subscription.dart';
 import 'http_request_method.dart';
 import 'http_security_exception.dart';
@@ -291,35 +290,43 @@ class HttpClient extends ProtocolClient {
     throw UnimplementedError();
   }
 
-  Future<String> _sendDiscoveryRequest(Request request) async {
+  Future<Content> _sendDiscoveryRequest(
+    Request request, {
+    required String acceptHeaderValue,
+  }) async {
+    request.headers['Accept'] = acceptHeaderValue;
     final response = await _client.send(request);
     final finalResponse = await _handleResponse(request, response);
-    return utf8.decode(await finalResponse.stream.toBytes());
+    return Content(
+      response.headers['Content-Type'] ?? acceptHeaderValue,
+      finalResponse.stream,
+    );
   }
 
   @override
-  Stream<ThingDescription> discoverDirectly(
+  Stream<Content> discoverDirectly(
     Uri uri, {
     bool disableMulticast = false,
   }) async* {
-    final request = Request(HttpRequestMethod.get.methodName, uri)
-      ..headers['Accept'] = 'application/td+json';
+    final request = Request(HttpRequestMethod.get.methodName, uri);
 
-    final rawThingDescription = await _sendDiscoveryRequest(request);
-    yield ThingDescription(rawThingDescription);
+    yield await _sendDiscoveryRequest(
+      request,
+      acceptHeaderValue: 'application/td+json',
+    );
   }
 
   @override
-  Stream<Uri> discoverWithCoreLinkFormat(Uri uri) async* {
+  Stream<Content> discoverWithCoreLinkFormat(Uri uri) async* {
     final discoveryUri = createCoreLinkFormatDiscoveryUri(uri);
 
-    final request = Request(HttpRequestMethod.get.methodName, uri)
-      ..headers['Accept'] = 'application/link-format';
+    final request = Request(HttpRequestMethod.get.methodName, discoveryUri);
 
-    final encodedLinks = await _sendDiscoveryRequest(request);
-
-    yield* Stream.fromIterable(
-      parseCoreLinkFormat(encodedLinks, discoveryUri),
+    final encodedLinks = await _sendDiscoveryRequest(
+      request,
+      acceptHeaderValue: 'application/link-format',
     );
+
+    yield encodedLinks;
   }
 }
