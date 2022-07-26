@@ -25,7 +25,7 @@ enum CoapRequestMethod {
   post(CoapCode.post),
 
   /// Corresponds with the DELETE request method.
-  delete(CoapCode.notSet),
+  delete(CoapCode.delete),
 
   /// Corresponds with the FETCH request method.
   fetch(CoapCode.notSet),
