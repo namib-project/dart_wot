@@ -20,7 +20,7 @@ extension InternetAddressMethods on Uri {
 
 /// CoAP-specific extensions for the [Form] class.
 extension CoapFormExtension on Form {
-  /// Determines if this [Form] supports the PSK security scheme.
+  /// Determines if this [Form] supports the [PskSecurityScheme].
   bool get usesPskScheme =>
       securityDefinitions.whereType<PskSecurityScheme>().isNotEmpty;
 
