@@ -91,7 +91,13 @@ class ThingDiscovery extends Stream<ThingDescription>
         continue;
       }
 
-      Uri parsedUri = Uri.tryParse(value.uri)!;
+      Uri? parsedUri = Uri.tryParse(value.uri);
+
+      if (parsedUri == null) {
+        // TODO: Should an error be passed on here instead?
+        continue;
+      }
+
       if (!parsedUri.isAbsolute) {
         parsedUri = parsedUri.replace(
           scheme: uri.scheme,
