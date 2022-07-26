@@ -5,7 +5,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 import '../../definitions/form.dart';
-import '../../definitions/thing_description.dart';
 import '../../scripting_api/subscription.dart';
 import '../content.dart';
 
@@ -17,7 +16,8 @@ abstract class ProtocolClient {
   /// Stops this [ProtocolClient].
   Future<void> stop();
 
-  /// Discovers a [ThingDescription] from a [uri].
+  /// Discovers one or more Thing Descriptions from a [uri], returning a
+  /// [Stream] of [Content].
   ///
   /// Allows the caller to explicitly [disableMulticast], overriding the
   /// multicast settings in the config of the underlying binding implementation.
@@ -26,8 +26,9 @@ abstract class ProtocolClient {
     bool disableMulticast = false,
   });
 
-  /// Discovers [ThingDescription] links from a [uri] using the CoRE Link
-  /// Format and Web Linking (see [RFC 6690]).
+  /// Discovers one or more Thing Descriptions from a [uri] using the CoRE Link
+  /// Format and Web Linking (see [RFC 6690]), returning a [Stream] of
+  /// [Content].
   ///
   /// The [uri] must point to either the resource lookup interface of a CoRE
   /// Resource Directory (see [RFC 9176]) or to a CoRE Resource Discovery
