@@ -5,13 +5,13 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:coap/coap.dart';
 
 import '../../core.dart';
 import '../../scripting_api.dart' as scripting_api;
 import '../definitions/thing_description.dart';
+import 'content.dart';
 
 /// Custom [Exception] that is thrown when the discovery process fails.
 class DiscoveryException implements Exception {
@@ -71,12 +71,22 @@ class ThingDiscovery extends Stream<ThingDescription>
     _active = false;
   }
 
+  Object? _decodeThingDescription(Content content) async {
+    try {
+      return await _servient.contentSerdes.contentToValue(content, null);
+    } on Exception {
+      return null;
+    }
+  }
+
   Stream<ThingDescription> _discoverDirectly(Uri uri) async* {
-    final content = _client.discoverDirectly(uri, disableMulticast: true);
-    yield* content.asyncMap(
-      (event) async =>
-          ThingDescription(utf8.decode((await event.byteBuffer).asUint8List())),
-    );
+    yield* _client
+        .discoverDirectly(uri, disableMulticast: true)
+        // TODO: Should errors be passed to the stream here?
+        .asyncMap(_decodeThingDescription)
+        .where((event) => event is Map<String, dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map(ThingDescription.fromJson);
   }
 
   Stream<ThingDescription> _discoverWithCoreLinkFormat(Uri uri) async* {
