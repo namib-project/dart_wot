@@ -18,7 +18,6 @@ import '../core/security_provider.dart';
 import '../core/thing_discovery.dart';
 import '../definitions/form.dart';
 import '../definitions/operation_type.dart';
-import '../definitions/security/psk_security_scheme.dart';
 import '../scripting_api/subscription.dart';
 import 'coap_binding_exception.dart';
 import 'coap_config.dart';
@@ -56,13 +55,6 @@ class _InternalCoapConfig extends CoapConfigDefault {
   final Form? _form;
 
   bool get _dtlsNeeded => _form?.resolvedHref.scheme == 'coaps';
-}
-
-/// Blah
-extension CoapFormExtension on Form {
-  /// Hello
-  bool get usesPskScheme =>
-      securityDefinitions.whereType<PskSecurityScheme>().isNotEmpty;
 }
 
 coap.PskCredentialsCallback? _createPskCallback(
