@@ -6,18 +6,22 @@
 
 // ignore_for_file: avoid_print
 
+import 'dart:typed_data';
+
 import 'package:dart_wot/dart_wot.dart';
 
 /// Matches [PskCredentials] by hostname and URI scheme.
 final Map<Uri, PskCredentials> _pskCredentialsStore = {
-  Uri(host: 'californium.eclipseprojects.io', scheme: 'coaps'):
-      PskCredentials(identity: 'Client_identity', preSharedKey: 'secretPSK')
+  Uri(host: 'californium.eclipseprojects.io', scheme: 'coaps'): PskCredentials(
+    identity: Uint8List.fromList('Client_identity'.codeUnits),
+    preSharedKey: Uint8List.fromList('secretPSK'.codeUnits),
+  )
 };
 
 PskCredentials? _pskCredentialsCallback(
   Uri uri,
   Form? form,
-  String? identityHint,
+  Uint8List? identityHint,
 ) {
   final key = Uri(scheme: uri.scheme, host: uri.host);
 

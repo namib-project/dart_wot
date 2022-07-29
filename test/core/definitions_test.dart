@@ -261,4 +261,70 @@ void main() {
       expect(propertyWithDefaults?.observable, false);
     });
   });
+
+  test('Should correctly parse Additional SecuritySchemes', () {
+    final rawThingDescription = {
+      '@context': [
+        'https://www.w3.org/2022/wot/td/v1.1',
+        {
+          'ace': 'http://www.example.org/ace-security#',
+          'saref': 'https://w3id.org/saref#'
+        }
+      ],
+      'id': 'urn:uuid:5edfed77-fc4e-46d4-a550-ef7f07592fbd',
+      '@type': ['saref:LightSwitch'],
+      'title': 'NAMIB WoT Thing',
+      'base': 'coap://192.168.71.200',
+      'properties': {
+        'status': {
+          '@type': ['saref:OnOffState'],
+          'title': 'Lamp status',
+          'description': 'The status of the lamp',
+          'forms': [
+            {
+              'op': ['readproperty'],
+              'href': 'led/status',
+              'contentType': 'application/json'
+            }
+          ],
+          'enum': ['On', 'Off'],
+          'readOnly': true,
+          'writeOnly': false,
+          'type': 'string'
+        }
+      },
+      'actions': {
+        'toggle': {
+          '@type': ['saref:ToggleCommand'],
+          'title': 'Toggle lamp',
+          'description': 'Toggle the status of the lamp',
+          'forms': [
+            {
+              'op': ['invokeaction'],
+              'href': 'led/toggle',
+              'contentType': 'application/json'
+            }
+          ],
+          'output': {'readOnly': false, 'writeOnly': false, 'type': 'string'},
+          'safe': false,
+          'idempotent': false
+        }
+      },
+      'security': ['ace_sc'],
+      'securityDefinitions': {
+        'ace_sc': {
+          'scheme': 'ace:ACESecurityScheme',
+          'ace:as': 'coaps://192.168.42.205:7744/authorize',
+          'ace:audience': 'NAMIB_Demonstrator',
+          'ace:scopes': ['led/status', 'led/toggle', 'temperature/value']
+        }
+      }
+    };
+
+    final thingDescription = ThingDescription.fromJson(rawThingDescription);
+    expect(
+      thingDescription.securityDefinitions['ace_sc']?.scheme,
+      'ace:ACESecurityScheme',
+    );
+  });
 }

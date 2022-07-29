@@ -6,11 +6,17 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:cbor/cbor.dart';
 import 'package:coap/coap.dart' as coap;
 import 'package:coap/config/coap_config_default.dart';
+import 'package:coap/config/coap_config_tinydtls.dart';
+import 'package:dcaf/dcaf.dart';
+import 'package:typed_data/typed_data.dart';
 
 import '../core/content.dart';
+import '../core/credentials/ace_credentials.dart';
 import '../core/credentials/psk_credentials.dart';
 import '../core/discovery/core_link_format.dart';
 import '../core/protocol_interfaces/protocol_client.dart';
@@ -18,6 +24,7 @@ import '../core/security_provider.dart';
 import '../core/thing_discovery.dart';
 import '../definitions/form.dart';
 import '../definitions/operation_type.dart';
+import '../definitions/security/ace_security_scheme.dart';
 import '../definitions/security/psk_security_scheme.dart';
 import '../definitions/thing_description.dart';
 import '../scripting_api/subscription.dart';
@@ -69,7 +76,7 @@ class _CoapRequest {
     this._form,
     this._requestMethod,
     CoapConfig _coapConfig,
-    ClientSecurityProvider? _clientSecurityProvider, [
+    this._clientSecurityProvider, [
     this._subprotocol,
   ])  : _coapClient = coap.CoapClient(
           _form.resolvedHref,
@@ -78,6 +85,8 @@ class _CoapRequest {
               _createPskCallback(_form, _clientSecurityProvider),
         ),
         _requestUri = _form.resolvedHref;
+
+  final ClientSecurityProvider? _clientSecurityProvider;
 
   /// The [CoapClient] which sends out request messages.
   final coap.CoapClient _coapClient;
@@ -99,46 +108,213 @@ class _CoapRequest {
   //              limitations of the CoAP library
   Future<coap.CoapResponse> _makeRequest(
     String? payload, {
-    int format = coap.CoapMediaType.textPlain,
-    int accept = coap.CoapMediaType.textPlain,
+    coap.CoapMediaType format = coap.CoapMediaType.applicationJson,
+    coap.CoapMediaType accept = coap.CoapMediaType.applicationJson,
     int? block1Size,
     int? block2Size,
   }) async {
-    final coap.CoapResponse? response;
-    switch (_requestMethod) {
-      case CoapRequestMethod.get:
-        response = await _coapClient.get(
-          _requestUri.path,
-          earlyBlock2Negotiation: true,
-          accept: accept,
-        );
-        break;
-      case CoapRequestMethod.post:
-        response = await _coapClient.post(
-          _requestUri.path,
-          payload: payload ?? '',
-          format: format,
-        );
-        break;
-      case CoapRequestMethod.put:
-        response = await _coapClient.put(
-          _requestUri.path,
-          payload: payload ?? '',
-          format: format,
-        );
-        break;
-      case CoapRequestMethod.delete:
-        response = await _coapClient.delete(_requestUri.path);
-        break;
-      default:
-        throw UnimplementedError(
-          'CoAP request method $_requestMethod is not supported yet.',
-        );
+    // TODO: Add support for block2 size back in
+
+    final request = _requestMethod.generateRequest()
+      ..uriPath = _requestUri.path
+      ..contentFormat = format
+      ..accept = accept;
+
+    if (payload != null) {
+      request.payload = Uint8Buffer()..addAll(payload.codeUnits);
     }
+
+    final creationHint = _getAceCreationHintFromForm();
+    final aceOAuthResponse = await _sendAceOauthRequest(request, creationHint);
+
+    if (aceOAuthResponse != null) {
+      return aceOAuthResponse;
+    }
+
+    final response = await _coapClient.send(request);
     _coapClient.close();
-    if (response == null) {
-      throw CoapBindingException('Sending CoAP request to $_requestUri failed');
+
+    return _handleResponse(request, response);
+  }
+
+  AuthServerRequestCreationHint? _obtainCreationHintFromResponse(
+    coap.CoapResponse response,
+  ) {
+    final responsePayload = response.payload;
+    if (responsePayload != null) {
+      return AuthServerRequestCreationHint.fromSerialized(
+        responsePayload.toList(),
+      );
     }
+
+    return null;
+  }
+
+  void _checkAceProfile(ACECredentials aceCredentials) {
+    final aceProfile = aceCredentials.accessToken.aceProfile;
+
+    if (aceProfile != null && aceProfile != AceProfile.coapDtls) {
+      throw CoapBindingException(
+        'ACE-OAuth Profile $aceProfile is not supported.',
+      );
+    }
+  }
+
+  Future<coap.CoapResponse> _handleResponse(
+    coap.CoapRequest request,
+    coap.CoapResponse response, {
+    ACECredentials? invalidAceCredentials,
+  }) async {
+    // TODO: Refactor using new CoAP Content-Format API
+    final responseClass = response.code >> 5 & 0x7;
+    final responseDetail = response.code & 0x7;
+
+    if (responseClass == 2) {
+      return response;
+    }
+
+    if (responseClass == 5) {
+      throw CoapBindingException('Server error $responseClass.$responseDetail');
+    }
+
+    final unauthorizedAceCodes = [
+      // TODO: Should other response codes be included as well?
+      coap.CoapCode.unauthorized,
+      coap.CoapCode.methodNotAllowed,
+      coap.CoapCode.forbidden,
+    ];
+
+    if (response.contentFormat == coap.CoapMediaType.applicationAceCbor &&
+        (unauthorizedAceCodes.contains(response.statusCode))) {
+      // if (_form.securityDefinitions
+      //     .whereType<AutoSecurityScheme>()
+      //     .isNotEmpty) {
+      return _handleAceOauthUnauthorizedResponse(
+        request,
+        response,
+        invalidAceCredentials,
+      );
+      // }
+
+      // throw CoapBindingException(
+      //   'Encountered unauthorized response but TD does not contain an '
+      //   'AutoSecurityScheme for automatic negotiation.',
+      // );
+    }
+
+    throw CoapBindingException('Client error $responseClass.$responseDetail');
+  }
+
+  // TODO: Could be an extension
+  AuthServerRequestCreationHint? _getAceCreationHintFromForm() {
+    final aceSecuritySchemes =
+        _form.securityDefinitions.whereType<ACESecurityScheme>();
+
+    if (aceSecuritySchemes.isEmpty) {
+      return null;
+    }
+
+    // TODO: Does a boolean cnonce parameter make sense here?
+    final aceSecurityScheme = aceSecuritySchemes.first;
+
+    final textScopes = aceSecurityScheme.scopes?.join(' ');
+    // TODO: Do the scopes defined for a form need to be considered here as
+    //       well?
+    // TODO: Move to extension
+    TextScope? scope;
+    if (textScopes != null) {
+      scope = TextScope(textScopes);
+    }
+
+    return AuthServerRequestCreationHint(
+      authorizationServer: aceSecurityScheme.as,
+      scope: scope,
+      audience: aceSecurityScheme.audience,
+    );
+  }
+
+  Future<coap.CoapResponse?> _sendAceOauthRequest(
+    coap.CoapRequest request,
+    AuthServerRequestCreationHint? creationHint, [
+    ACECredentials? invalidAceCredentials,
+  ]) async {
+    final aceCredentialsCallback =
+        _clientSecurityProvider?.aceCredentialsCallback;
+
+    if (aceCredentialsCallback == null || creationHint == null) {
+      return null;
+    }
+
+    final aceCredentials = await aceCredentialsCallback(
+      _form.resolvedHref,
+      _form,
+      creationHint,
+      invalidAceCredentials,
+    );
+
+    if (aceCredentials == null) {
+      throw CoapBindingException('Missing ACE-OAuth Credentials');
+    }
+
+    _checkAceProfile(aceCredentials);
+
+    final identity = Uint8List.fromList(aceCredentials.accessToken.accessToken);
+
+    final cnf = aceCredentials.accessToken.cnf;
+
+    if (cnf is! PlainCoseKey) {
+      throw CoapBindingException(
+        'Proof of Possession Key for establishing a DTLS connection must be '
+        'symmetric',
+      );
+    }
+
+    final key = cnf.key.parameters[-1];
+    final Uint8List psk;
+    if (key is CborBytes) {
+      psk = Uint8List.fromList(key.bytes);
+    } else {
+      throw CoapBindingException(
+        'Proof of Possession Key for establishing a DTLS connection must be '
+        'bytes',
+      );
+    }
+
+    final client = coap.CoapClient(
+      request.uri.replace(scheme: 'coaps'),
+      CoapConfigTinydtls(),
+      pskCredentialsCallback: (identityHint) =>
+          coap.PskCredentials(identity: identity, preSharedKey: psk),
+    );
+
+    final response = await client.send(request);
+    client.close();
+
+    return _handleResponse(
+      request,
+      response,
+      invalidAceCredentials: aceCredentials,
+    );
+  }
+
+  Future<coap.CoapResponse> _handleAceOauthUnauthorizedResponse(
+    coap.CoapRequest originalRequest,
+    coap.CoapResponse originalResponse,
+    ACECredentials? invalidAceCredentials,
+  ) async {
+    final creationHint = _obtainCreationHintFromResponse(originalResponse);
+
+    final response = await _sendAceOauthRequest(
+      originalRequest,
+      creationHint,
+      invalidAceCredentials,
+    );
+
+    if (response == null) {
+      // TODO: Remove once new coap library version has been released.
+      throw CoapBindingException('Error during request');
+    }
+
     return response;
   }
 
@@ -178,7 +354,8 @@ class _CoapRequest {
       block1Size: _form.block1Size,
       block2Size: _form.block2Size,
     );
-    final type = coap.CoapMediaType.name(response.contentFormat);
+    final type =
+        response.contentFormat?.contentType.toString() ?? _form.contentType;
     final body = _getPayloadFromResponse(response);
     return Content(type, body);
   }
@@ -192,7 +369,8 @@ class _CoapRequest {
         return;
       }
 
-      final type = coap.CoapMediaType.name(response.contentFormat);
+      final type =
+          response.contentFormat?.contentType.toString() ?? _form.contentType;
       final body = _getPayloadFromResponse(response);
       final content = Content(type, body);
       next(content);
@@ -322,6 +500,8 @@ class CoapClient extends ProtocolClient {
     coap.CoapResponse? response,
     Uri uri,
   ) {
+    // TODO: Rework structure to also be able to use ACE-OAuth in discovery
+
     final rawThingDescription = response?.payloadString;
 
     if (response == null) {
@@ -411,12 +591,6 @@ class CoapClient extends ProtocolClient {
     final response = await coapClient.send(request);
 
     coapClient.close();
-
-    if (response == null) {
-      throw DiscoveryException(
-        'Got no CoRE Link Format Discovery response for $uri',
-      );
-    }
 
     final actualContentFormat = response.contentFormat;
     const expectedContentFormat = coap.CoapMediaType.applicationLinkFormat;

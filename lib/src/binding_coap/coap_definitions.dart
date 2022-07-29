@@ -38,18 +38,25 @@ enum CoapRequestMethod {
 
   /// Generate a new [CoapRequest] based on this [CoapRequestMethod].
   CoapRequest generateRequest() {
+    final int code;
     switch (this) {
       case CoapRequestMethod.get:
-        return CoapRequest.newGet();
+        code = CoapCode.get;
+        break;
       case CoapRequestMethod.post:
-        return CoapRequest.newPost();
+        code = CoapCode.post;
+        break;
       case CoapRequestMethod.put:
-        return CoapRequest.newPut();
+        code = CoapCode.put;
+        break;
       case CoapRequestMethod.delete:
-        return CoapRequest.newDelete();
+        code = CoapCode.delete;
+        break;
       default:
         throw UnimplementedError();
     }
+    final request = CoapRequest(code);
+    return request;
   }
 
   static CoapRequestMethod? _fromString(String stringValue) {

@@ -27,6 +27,7 @@ class Form {
     this.href,
     this.interactionAffordance, {
     this.contentType = 'application/json',
+    this.contentCoding,
     this.subprotocol,
     this.security,
     List<String>? op,
@@ -73,6 +74,15 @@ class Form {
           _getJsonValue(json, 'contentType', parsedJsonFields);
       if (jsonContentType is String) {
         contentType = jsonContentType;
+      }
+    }
+
+    String? contentCoding;
+    if (json['contentCoding'] != null) {
+      final dynamic jsonContentCoding =
+          _getJsonValue(json, 'contentCoding', parsedJsonFields);
+      if (jsonContentCoding is String) {
+        contentCoding = jsonContentCoding;
       }
     }
 
@@ -136,6 +146,7 @@ class Form {
       href,
       interactionAffordance,
       contentType: contentType,
+      contentCoding: contentCoding,
       subprotocol: subprotocol,
       op: op,
       scopes: scopes,
@@ -169,6 +180,16 @@ class Form {
 
   /// The [contentType] supported by this [Form].
   String contentType = 'application/json';
+
+  /// The content coding supported by this [Form].
+  ///
+  /// Content coding values indicate an encoding transformation that has been or
+  /// can be applied to a representation.
+  /// Content codings are primarily used to allow a representation to be
+  /// compressed or otherwise usefully transformed without losing the identity
+  /// of its underlying media type and without loss of information.
+  /// Examples of content coding include "gzip", "deflate", etc.
+  String? contentCoding;
 
   /// The list of [security] definitions applied to this [Form].
   List<String>? security;

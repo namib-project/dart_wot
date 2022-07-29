@@ -24,7 +24,7 @@ class ThingDescriptionValidationException extends ValidationException {
 
 final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
   'title': 'Thing Description',
-  'version': '1.1-28-January-2022',
+  'version': '1.1-10-June-2022',
   'description':
       'JSON Schema for validating TD instances against the TD information '
           'model. TD instances can be with or without terms that have default '
@@ -33,7 +33,7 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
   '\$id':
       'https://raw.githubusercontent.com/w3c/wot-thing-description/main/validation/td-json-schema-validation.json',
   'definitions': {
-    'anyUri': {'type': 'string', 'format': 'iri-reference'},
+    'anyUri': {'type': 'string'},
     'description': {'type': 'string'},
     'descriptions': {
       'type': 'object',
@@ -66,21 +66,52 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
       'type': 'string',
       'examples': ['longpoll', 'websub', 'sse']
     },
-    'thing-context-w3c-uri': {
+    'thing-context-td-uri-v1': {
       'type': 'string',
-      'enum': [
-        'https://www.w3.org/2019/wot/td/v1',
-        'http://www.w3.org/ns/td',
-        'https://www.w3.org/2022/wot/td/v1.1'
-      ]
+      'const': 'https://www.w3.org/2019/wot/td/v1'
+    },
+    'thing-context-td-uri-v1.1': {
+      'type': 'string',
+      'const': 'https://www.w3.org/2022/wot/td/v1.1'
+    },
+    'thing-context-td-uri-temp': {
+      'type': 'string',
+      'const': 'http://www.w3.org/ns/td'
     },
     'thing-context': {
-      'oneOf': [
+      'anyOf': [
         {
+          '\$comment':
+              'New context URI with other vocabularies after it but not the '
+                  'old one',
           'type': 'array',
           'items': [
-            {'\$ref': '#/definitions/thing-context-w3c-uri'}
+            {'\$ref': '#/definitions/thing-context-td-uri-v1.1'}
           ],
+          'additionalItems': {
+            'anyOf': [
+              {'\$ref': '#/definitions/anyUri'},
+              {'type': 'object'}
+            ],
+            'not': {'\$ref': '#/definitions/thing-context-td-uri-v1'}
+          }
+        },
+        {
+          '\$comment': 'Only the new context URI',
+          '\$ref': '#/definitions/thing-context-td-uri-v1.1'
+        },
+        {
+          '\$comment':
+              'Old context URI, followed by the new one and possibly other '
+                  'vocabularies. minItems and contains are required since '
+                  'prefixItems does not say all items should be provided',
+          'type': 'array',
+          'prefixItems': [
+            {'\$ref': '#/definitions/thing-context-td-uri-v1'},
+            {'\$ref': '#/definitions/thing-context-td-uri-v1.1'}
+          ],
+          'minItems': 2,
+          'contains': {'\$ref': '#/definitions/thing-context-td-uri-v1.1'},
           'additionalItems': {
             'anyOf': [
               {'\$ref': '#/definitions/anyUri'},
@@ -88,7 +119,27 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
             ]
           }
         },
-        {'\$ref': '#/definitions/thing-context-w3c-uri'}
+        {
+          '\$comment': 'Old context URI, followed by possibly other '
+              'vocabularies. minItems and contains are required since '
+              'prefixItems does not say all items should be provided',
+          'type': 'array',
+          'prefixItems': [
+            {'\$ref': '#/definitions/thing-context-td-uri-v1'}
+          ],
+          'minItems': 1,
+          'contains': {'\$ref': '#/definitions/thing-context-td-uri-v1'},
+          'additionalItems': {
+            'anyOf': [
+              {'\$ref': '#/definitions/anyUri'},
+              {'type': 'object'}
+            ]
+          }
+        },
+        {
+          '\$comment': 'Only the new context URI',
+          '\$ref': '#/definitions/thing-context-td-uri-v1'
+        }
       ]
     },
     'type_declaration': {
@@ -135,8 +186,8 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
         'unit': {'type': 'string'},
         'enum': {'type': 'array', 'minItems': 1, 'uniqueItems': true},
         'format': {'type': 'string'},
-        'const': <String, dynamic>{},
-        'default': <String, dynamic>{},
+        'const': {},
+        'default': {},
         'contentEncoding': {'type': 'string'},
         'contentMediaType': {'type': 'string'},
         'type': {'\$ref': '#/definitions/dataSchema-type'},
@@ -377,8 +428,8 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
         'unit': {'type': 'string'},
         'enum': {'type': 'array', 'minItems': 1, 'uniqueItems': true},
         'format': {'type': 'string'},
-        'const': <String, dynamic>{},
-        'default': <String, dynamic>{},
+        'const': {},
+        'default': {},
         'type': {'\$ref': '#/definitions/dataSchema-type'},
         'items': {
           'oneOf': [
@@ -429,7 +480,8 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
         'input': {'\$ref': '#/definitions/dataSchema'},
         'output': {'\$ref': '#/definitions/dataSchema'},
         'safe': {'type': 'boolean'},
-        'idempotent': {'type': 'boolean'}
+        'idempotent': {'type': 'boolean'},
+        'synchronous': {'type': 'boolean'}
       },
       'required': ['forms'],
       'additionalProperties': true
@@ -477,7 +529,7 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
           'not': {
             'description': 'A basic link element should not contain sizes',
             'type': 'object',
-            'properties': {'sizes': <String, dynamic>{}},
+            'properties': {'sizes': {}},
             'required': ['sizes']
           }
         },
@@ -506,6 +558,35 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
           'required': ['rel']
         }
       ]
+    },
+    'additionalSecurityScheme': {
+      'description':
+          'Applies to additional SecuritySchemes not defined in the WoT TD '
+              'specification.',
+      '\$comment':
+          'Additional SecuritySchemes should always be defined via a context '
+              'extension, using a prefixed value for the scheme. This prefix '
+              "(e.g. 'ace', see the example below) must contain at least one "
+              'character in order to reference a valid JSON-LD context '
+              'extension.',
+      'examples': [
+        {
+          'scheme': 'ace:ACESecurityScheme',
+          'ace:as': 'coaps://as.example.com/token',
+          'ace:audience': 'coaps://rs.example.com',
+          'ace:scopes': ['limited', 'special'],
+          'ace:cnonce': true
+        }
+      ],
+      'type': 'object',
+      'properties': {
+        '@type': {'\$ref': '#/definitions/type_declaration'},
+        'description': {'\$ref': '#/definitions/description'},
+        'descriptions': {'\$ref': '#/definitions/descriptions'},
+        'proxy': {'\$ref': '#/definitions/anyUri'},
+        'scheme': {'type': 'string', 'pattern': '.+:.*'}
+      },
+      'required': ['scheme']
     },
     'noSecurityScheme': {
       'type': 'object',
@@ -632,7 +713,7 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
         },
         'in': {
           'type': 'string',
-          'enum': ['header', 'query', 'body', 'cookie']
+          'enum': ['header', 'query', 'body', 'cookie', 'uri', 'auto']
         },
         'name': {'type': 'string'}
       },
@@ -720,7 +801,8 @@ final Map<String, dynamic> _rawThingDescriptionSchema = <String, dynamic>{
         {'\$ref': '#/definitions/apiKeySecurityScheme'},
         {'\$ref': '#/definitions/bearerSecurityScheme'},
         {'\$ref': '#/definitions/pskSecurityScheme'},
-        {'\$ref': '#/definitions/oAuth2SecurityScheme'}
+        {'\$ref': '#/definitions/oAuth2SecurityScheme'},
+        {'\$ref': '#/definitions/additionalSecurityScheme'}
       ]
     }
   },
